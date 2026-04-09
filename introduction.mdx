@@ -1,0 +1,46 @@
+---
+title: "Dashlane Public API: Read-Only Access for Teams"
+description: "Learn what the Dashlane Public API is, who it's for, and how to access member data, device lists, password health reports, and team policies programmatically."
+---
+
+The Dashlane Public API is a read-only REST API for Dashlane team accounts. It gives developers and IT administrators programmatic access to team member data, device registrations, password health analytics, and team configuration — all without modifying any data or requiring manual work in the Admin Console. The API is intended for team admins building dashboards, automating compliance reporting, or integrating Dashlane data into existing enterprise tooling.
+
+## Key capabilities
+
+The API exposes six endpoints, all using `POST` with a JSON body:
+
+- **Members** — list every member of your team with their status, biometrics settings, and account metadata
+- **Member devices** — retrieve the devices registered to each member across your organization
+- **Password health report** — get a point-in-time view of weak, reused, and compromised credentials for your team
+- **Password health history** — track password health scores over time to measure improvement
+- **Team info** — retrieve configuration details for your Dashlane team account
+- **Team policies** — access the security policies applied to your team
+
+<Note>
+  The Dashlane Public API is **read-only**. No endpoint modifies team data. All requests use `POST` with a JSON body, and the base URL is `https://api.dashlane.com`.
+</Note>
+
+## Who this API is for
+
+The Dashlane Public API is designed for **developers and IT administrators** who manage a Dashlane Business or Enterprise team. You must be a team admin to generate API keys. If you are an individual Dashlane user, this API does not apply to your account.
+
+## OpenAPI specification
+
+A full OpenAPI 3.0 specification is available at `https://get.dashlane.com/public-api/openapi.json`. You can import it into tools like Postman, Insomnia, or any code generator to explore endpoints and generate client libraries.
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API call in minutes: generate a key, authenticate, and retrieve team members.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    Understand how Bearer token authentication works and how keys are structured.
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/overview">
+    Explore every endpoint with full request and response documentation.
+  </Card>
+  <Card title="Guides" icon="book-open" href="/guides/team-management">
+    Learn common integration patterns for team management and password health monitoring.
+  </Card>
+</CardGroup>

@@ -1,0 +1,82 @@
+---
+title: 'Manage, List, and Revoke Dashlane API Keys'
+description: 'List active Dashlane API keys, revoke keys that are no longer needed, and follow best practices for key hygiene across integrations and team changes.'
+---
+
+After creating API keys for your integrations, you will periodically need to audit which keys are active and revoke keys that are no longer in use. The Dashlane CLI provides commands for both operations. Effective key management reduces your exposure if a key is compromised and keeps your integrations auditable.
+
+## List active API keys
+
+To see all API keys currently associated with your team, run:
+
+```bash
+dcli team public-api list-keys
+```
+
+The output lists each key by its `accessKey` identifier and the description you provided at creation time. Use this command to verify which integrations have active credentials and to identify keys that should be revoked.
+
+```
+Access Key      Description
+────────────    ────────────────────────────────
+e5f6g7h8        SIEM integration - prod
+a1b2c3d4        HR dashboard - staging
+f9e8d7c6        Data export - quarterly audit
+```
+
+<Note>
+  The full secret key is never shown when listing keys. Only the `accessKey` identifier and description are returned. This is by design — if you need the full key value and cannot recover it from your secrets store, you must revoke the key and generate a new one.
+</Note>
+
+## Revoke an API key
+
+To revoke a key, pass its `accessKey` identifier to the `revoke-key` command:
+
+```bash
+dcli team public-api revoke-key <accessKey>
+```
+
+For example, to revoke the key with access key `e5f6g7h8`:
+
+```bash
+dcli team public-api revoke-key e5f6g7h8
+```
+
+<Warning>
+  Revoking a key is immediate and irreversible. Any integration currently using that key will stop working the moment the key is revoked. Make sure you have updated or decommissioned any dependent integrations before revoking.
+</Warning>
+
+## When to revoke keys
+
+Revoke an API key whenever any of the following apply:
+
+- **Employee offboarding** — a team member who created or had access to the key has left the organization
+- **Suspected compromise** — the key may have been exposed in logs, committed to version control, or otherwise leaked
+- **Integration decommissioned** — the service or automation that used the key is no longer active
+- **Key rotation** — as part of a scheduled rotation policy, retire older keys and replace them with new ones
+
+## Best practices
+
+<Tip>
+  Follow these practices to keep your API key usage secure and manageable over time.
+</Tip>
+
+**One key per integration.** Assign a separate API key to each distinct integration or service. This scopes the blast radius if a key is compromised — you can revoke a single key without affecting other integrations.
+
+**Use descriptive labels.** When creating a key with `dcli team public-api create-key`, use a label that identifies the integration and environment, such as `"SIEM integration - prod"` or `"Data export script - CI"`. This makes it far easier to identify which key to revoke in an incident.
+
+**Rotate keys regularly.** Set a calendar reminder to rotate API keys on a schedule that matches your organization's security policy. To rotate a key: generate a new key, update the integration to use it, verify the integration works, then revoke the old key.
+
+**Store keys in a secrets manager.** Never store API keys in source code, config files checked into version control, or plain text files. Use your platform's secret store (AWS Secrets Manager, GitHub Actions secrets, HashiCorp Vault, etc.).
+
+**Enable secret scanning.** Configure your code repository to scan for the `DLP_` prefix as a custom secret pattern. This catches keys that are accidentally committed before they can be exploited.
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Generate an API key" icon="key" href="/authentication/api-keys">
+    Create a new API key using the Admin Console or Dashlane CLI.
+  </Card>
+  <Card title="Authentication overview" icon="shield" href="/authentication/overview">
+    Understand how to use API keys in your requests.
+  </Card>
+</CardGroup>

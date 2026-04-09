@@ -1,0 +1,126 @@
+---
+title: "POST /public/teams/Members — List team members"
+description: "POST /public/teams/Members — retrieves all team members with roles, statuses, and account metadata. Returns login, status, isTeamCaptain fields."
+---
+
+Use this endpoint to retrieve all members of your Dashlane team. The response includes each member's login email, current status, admin role flag, desktop app installation state, biometrics configuration, and account timestamps. This is the primary way to enumerate your team roster programmatically.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/Members
+```
+
+## Authentication
+
+All requests require a Bearer token in the `Authorization` header. Your API key encodes the team UUID, access key, and secret key in a single string.
+
+<ParamField path="header.Authorization" type="string" required>
+  Bearer token in the format `Bearer DLP_teamUuid_accessKey_secretKey`.
+</ParamField>
+
+<ParamField path="header.Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+## Request body
+
+Send an empty JSON object. No parameters are required or accepted.
+
+```json
+{}
+```
+
+## Response fields
+
+<ResponseField name="members" type="object[]" required>
+  Array of member objects for every seat in your team.
+
+  <Expandable title="properties">
+    <ResponseField name="login" type="string" required>
+      The member's email address, used as their Dashlane account identifier.
+    </ResponseField>
+
+    <ResponseField name="status" type="string" required>
+      The member's current standing on the team. Possible values: `accepted`, `pending`, `removed`. See [member fields reference](/api-reference/members/details) for what each value means.
+    </ResponseField>
+
+    <ResponseField name="isTeamCaptain" type="boolean" required>
+      `true` if the member holds team admin (team captain) privileges. Admins can manage members, view reports, and configure policies.
+    </ResponseField>
+
+    <ResponseField name="hasDesktopApp" type="boolean" required>
+      `true` if the member has the Dashlane desktop application installed and linked to their account.
+    </ResponseField>
+
+    <ResponseField name="isBiometricsEnabled" type="boolean" required>
+      `true` if the member has configured biometric unlock on at least one device.
+    </ResponseField>
+
+    <ResponseField name="accountCreationDateUnix" type="number" required>
+      Unix timestamp (seconds) for when the member's Dashlane account was created.
+    </ResponseField>
+
+    <ResponseField name="lastUpdateDateUnix" type="number" required>
+      Unix timestamp (seconds) for the most recent update to this member's record.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  All timestamps are Unix epoch seconds. Multiply by 1000 to convert to milliseconds for JavaScript `Date` objects.
+</Note>
+
+## Example request
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/Members \
+  --header 'Authorization: Bearer DLP_abc123_myAccessKey_mySecretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+## Example response
+
+```json
+{
+  "members": [
+    {
+      "login": "alice@example.com",
+      "status": "accepted",
+      "hasDesktopApp": true,
+      "isBiometricsEnabled": false,
+      "isTeamCaptain": true,
+      "accountCreationDateUnix": 1690000000,
+      "lastUpdateDateUnix": 1700000000
+    },
+    {
+      "login": "bob@example.com",
+      "status": "pending",
+      "hasDesktopApp": false,
+      "isBiometricsEnabled": false,
+      "isTeamCaptain": false,
+      "accountCreationDateUnix": 1695000000,
+      "lastUpdateDateUnix": 1695000000
+    }
+  ]
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Member fields reference" icon="book-open" href="/api-reference/members/details">
+    Deep dive into status values, the isTeamCaptain flag, and all member object fields.
+  </Card>
+  <Card title="Member devices" icon="monitor" href="/api-reference/members/devices">
+    List devices registered to team members, with optional filtering by login.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    How to obtain and format your API key for Bearer token auth.
+  </Card>
+  <Card title="Error reference" icon="triangle-alert" href="/api-reference/errors">
+    HTTP status codes and error response shapes returned by the API.
+  </Card>
+</CardGroup>

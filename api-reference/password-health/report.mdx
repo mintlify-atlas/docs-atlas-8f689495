@@ -1,0 +1,158 @@
+---
+title: 'POST /public/teams/PasswordHealthReport'
+description: 'Returns a point-in-time snapshot of password health for the entire team, including weak, reused, and compromised password counts per member.'
+---
+
+The `PasswordHealthReport` endpoint returns a snapshot of the current password health state for your team. The response includes aggregate counts for the whole team alongside a per-member breakdown, so you can identify which accounts need attention without manually reviewing each member in the Dashlane console.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/PasswordHealthReport
+```
+
+## Authentication
+
+All requests require a `Bearer` token in the `Authorization` header. Your API key follows the format `DLP_<teamUuid>_<accessKey>_<secretKey>`. See [API keys](/authentication/api-keys) for instructions on generating keys.
+
+## Request
+
+Send an empty JSON object as the request body. No parameters are required.
+
+<ParamField body="body" type="object">
+  Empty JSON object. No fields are accepted.
+</ParamField>
+
+## Response
+
+<ResponseField name="report" type="object" required>
+  Top-level container for the password health snapshot.
+
+  <Expandable title="properties">
+    <ResponseField name="passwordsCount" type="number" required>
+      Total number of passwords stored across all team members.
+    </ResponseField>
+
+    <ResponseField name="safePasswords" type="number" required>
+      Number of passwords that meet strength requirements and are not reused or compromised.
+    </ResponseField>
+
+    <ResponseField name="weakPasswords" type="number" required>
+      Number of passwords that do not meet minimum strength requirements. These passwords have low entropy and are easily guessable.
+    </ResponseField>
+
+    <ResponseField name="reusedPasswords" type="number" required>
+      Number of passwords that appear more than once across a member's vault. Reused passwords multiply the blast radius of a single credential compromise.
+    </ResponseField>
+
+    <ResponseField name="compromisedPasswords" type="number" required>
+      Number of passwords that have appeared in known data breaches. A value greater than `0` warrants immediate action.
+    </ResponseField>
+
+    <ResponseField name="averagePasswordStrength" type="number" required>
+      Team-wide average password strength score on a scale of `0` to `100`. Higher is better.
+    </ResponseField>
+
+    <ResponseField name="members" type="array" required>
+      Per-member breakdown of password health metrics. Each object in this array corresponds to one team member.
+
+      <Expandable title="properties">
+        <ResponseField name="login" type="string" required>
+          The member's email address, used as their Dashlane account identifier.
+        </ResponseField>
+
+        <ResponseField name="passwordsCount" type="number" required>
+          Total number of passwords in this member's vault.
+        </ResponseField>
+
+        <ResponseField name="safePasswords" type="number" required>
+          Number of safe passwords for this member.
+        </ResponseField>
+
+        <ResponseField name="weakPasswords" type="number" required>
+          Number of weak passwords for this member.
+        </ResponseField>
+
+        <ResponseField name="reusedPasswords" type="number" required>
+          Number of reused passwords for this member.
+        </ResponseField>
+
+        <ResponseField name="compromisedPasswords" type="number" required>
+          Number of compromised passwords for this member. Alert or notify the member directly if this is greater than `0`.
+        </ResponseField>
+
+        <ResponseField name="averagePasswordStrength" type="number" required>
+          Average password strength score for this member, from `0` to `100`.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Tip>
+  Filter the `members` array for records where `compromisedPasswords > 0` and trigger an automated alert or support ticket. These are the highest-priority accounts to remediate.
+</Tip>
+
+## Example
+
+### Request
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/PasswordHealthReport \
+  --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+### Response
+
+```json
+{
+  "report": {
+    "passwordsCount": 1250,
+    "safePasswords": 980,
+    "weakPasswords": 145,
+    "reusedPasswords": 87,
+    "compromisedPasswords": 38,
+    "averagePasswordStrength": 76,
+    "members": [
+      {
+        "login": "alice@example.com",
+        "passwordsCount": 87,
+        "safePasswords": 72,
+        "weakPasswords": 8,
+        "reusedPasswords": 5,
+        "compromisedPasswords": 2,
+        "averagePasswordStrength": 82
+      },
+      {
+        "login": "bob@example.com",
+        "passwordsCount": 43,
+        "safePasswords": 30,
+        "weakPasswords": 9,
+        "reusedPasswords": 4,
+        "compromisedPasswords": 0,
+        "averagePasswordStrength": 68
+      }
+    ]
+  }
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Password health history" icon="chart-line" href="/api-reference/password-health/history">
+    Query historical snapshots to measure how team password health has changed over time.
+  </Card>
+  <Card title="Password health guide" icon="shield-check" href="/guides/password-health">
+    Learn how to use password health data to build monitoring workflows and alerts.
+  </Card>
+  <Card title="API reference overview" icon="book-open" href="/api-reference/overview">
+    Browse all available endpoints and their request and response formats.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/api-keys">
+    Learn how to generate and manage your API keys.
+  </Card>
+</CardGroup>

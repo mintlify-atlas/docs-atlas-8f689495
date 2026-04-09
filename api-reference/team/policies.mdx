@@ -1,0 +1,122 @@
+---
+title: "POST /public/teams/TeamPolicies — Security policies"
+description: "Read your team's security policy configuration: 2FA and SSO enforcement, password strength requirements, allowed domains, and sharing rules."
+---
+
+Use this endpoint to retrieve the security policies currently applied to your Dashlane team. The response covers authentication requirements such as two-factor and SSO enforcement, the password strength tier, domains permitted for team sharing, and whether sharing is restricted to internal members. Because this endpoint is read-only, all policy changes must be made through the Dashlane Admin Console.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/TeamPolicies
+```
+
+## Authentication
+
+All requests require a Bearer token in the `Authorization` header. Your API key encodes the team UUID, access key, and secret key in a single string.
+
+<ParamField path="header.Authorization" type="string" required>
+  Bearer token in the format `Bearer DLP_teamUuid_accessKey_secretKey`.
+</ParamField>
+
+<ParamField path="header.Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+## Request body
+
+Send an empty JSON object. No parameters are required or accepted.
+
+```json
+{}
+```
+
+## Response fields
+
+<ResponseField name="policies" type="object" required>
+  Object containing the team's active security policy configuration.
+
+  <Expandable title="properties">
+    <ResponseField name="enforced2FA" type="boolean" required>
+      `true` if two-factor authentication is mandatory for all team members. Members who have not set up 2FA will be blocked from accessing the team vault when this is enabled.
+    </ResponseField>
+
+    <ResponseField name="enforcedSSO" type="boolean" required>
+      `true` if single sign-on is required for team authentication. When enabled, members must authenticate through the configured identity provider instead of a Dashlane master password.
+    </ResponseField>
+
+    <ResponseField name="passwordStrengthPolicy" type="string" required>
+      The minimum password strength tier enforced across the team. Possible values: `none`, `moderate`, `strong`, `very_strong`. Dashlane evaluates generated and saved passwords against this threshold and surfaces warnings for non-compliant credentials.
+    </ResponseField>
+
+    <ResponseField name="allowedDomains" type="string[]" required>
+      List of email domains permitted for sharing within the team. Sharing requests to addresses outside these domains are blocked. Returns an empty array if no domain restrictions are configured.
+    </ResponseField>
+
+    <ResponseField name="sharingEnabled" type="boolean" required>
+      `true` if members are allowed to share credentials and secure notes with other users.
+    </ResponseField>
+
+    <ResponseField name="sharingRestrictedToTeam" type="boolean" required>
+      `true` if sharing is limited to other members within the same Dashlane team. When `false`, members can share with any Dashlane user.
+    </ResponseField>
+
+    <ResponseField name="adminContactEmail" type="string" required>
+      The email address of the designated admin contact. Dashlane uses this address for security notifications and policy-related communications.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Info>
+  All policies returned by this endpoint are configured in the Dashlane Admin Console. This API endpoint is read-only — it reflects the current state but cannot be used to modify policies.
+</Info>
+
+<Tip>
+  Check `enforced2FA` programmatically to verify your security baseline is in place. If the value is `false`, you can trigger an alert or block onboarding flows until an admin enables it in the Admin Console.
+</Tip>
+
+## Example request
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/TeamPolicies \
+  --header 'Authorization: Bearer DLP_a1b2c3d4_myAccessKey_mySecretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+## Example response
+
+```json
+{
+  "policies": {
+    "enforced2FA": true,
+    "enforcedSSO": false,
+    "passwordStrengthPolicy": "strong",
+    "allowedDomains": [
+      "example.com",
+      "acme.com"
+    ],
+    "sharingEnabled": true,
+    "sharingRestrictedToTeam": false,
+    "adminContactEmail": "it-security@example.com"
+  }
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Team account info" icon="building" href="/api-reference/team/info">
+    Fetch your team's name, plan tier, member counts, and account lifecycle dates.
+  </Card>
+  <Card title="Password health report" icon="heart-pulse" href="/api-reference/password-health/report">
+    Retrieve aggregated password health scores across your team.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    How to obtain and format your API key for Bearer token auth.
+  </Card>
+  <Card title="Error reference" icon="triangle-alert" href="/api-reference/errors">
+    HTTP status codes and error response shapes returned by the API.
+  </Card>
+</CardGroup>

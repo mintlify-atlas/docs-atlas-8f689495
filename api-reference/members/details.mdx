@@ -1,0 +1,100 @@
+---
+title: "Understanding member fields and status values"
+description: "Reference for every field in the Dashlane member object: status values, the isTeamCaptain admin flag, desktop app enrollment, biometrics, and Unix timestamps."
+---
+
+The member object returned by [POST /public/teams/Members](/api-reference/members/list) contains several fields that reflect a member's role, device state, and lifecycle within the team. This page explains what each field represents and how to interpret the values your integration receives.
+
+## Member object fields
+
+<ResponseField name="login" type="string">
+  The member's email address. This is the primary identifier for a Dashlane account and is used consistently across API responses. Use this value when filtering [member devices](/api-reference/members/devices) by a specific user.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  The member's current standing on the team. This field reflects where the member is in the invitation and account lifecycle.
+
+  <Expandable title="status values">
+    <ResponseField name="accepted" type="string">
+      The member has accepted their team invitation and their account is active. They can log in and use Dashlane under the team plan.
+    </ResponseField>
+
+    <ResponseField name="pending" type="string">
+      An invitation has been sent to this email address, but the recipient has not yet accepted it. The member does not yet have an active team account.
+    </ResponseField>
+
+    <ResponseField name="removed" type="string">
+      The member has been removed from the team. Their account data is no longer under team management. Removed members may still appear in the response depending on your retention configuration.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="isTeamCaptain" type="boolean">
+  `true` if the member has team admin (team captain) privileges. Team captains can invite and remove members, view security reports, manage billing, and configure team policies. Only grant this role to members who need administrative access.
+</ResponseField>
+
+<ResponseField name="hasDesktopApp" type="boolean">
+  `true` if the member has the Dashlane desktop application installed and associated with their account. Members who only use the browser extension or mobile app will have this set to `false`.
+</ResponseField>
+
+<ResponseField name="isBiometricsEnabled" type="boolean">
+  `true` if the member has configured biometric unlock (such as Touch ID or Windows Hello) on at least one of their devices. This field does not indicate which devices have biometrics enabled — use the [devices endpoint](/api-reference/members/devices) to enumerate per-device information.
+</ResponseField>
+
+<ResponseField name="accountCreationDateUnix" type="number">
+  Unix timestamp in seconds representing when the member's Dashlane account was first created. This is the account creation date, not the date they joined your team.
+</ResponseField>
+
+<ResponseField name="lastUpdateDateUnix" type="number">
+  Unix timestamp in seconds representing the most recent time this member's record was updated. Changes to status, role, or device configuration can advance this timestamp.
+</ResponseField>
+
+<Note>
+  All timestamps are Unix epoch seconds. To convert to a JavaScript `Date`, multiply by 1000: `new Date(member.accountCreationDateUnix * 1000)`.
+</Note>
+
+## Status value quick reference
+
+<AccordionGroup>
+  <Accordion title="accepted — active team member">
+    The member has a fully active Dashlane team account. Their vault is under team management, and they appear in security reports. This is the normal state for members who have completed onboarding.
+  </Accordion>
+
+  <Accordion title="pending — invitation sent, not yet accepted">
+    An invitation email was sent to this address, but the user has not completed account setup. Pending members do not count as active seats until they accept. Follow up directly or re-send the invitation from the admin console.
+  </Accordion>
+
+  <Accordion title="removed — no longer on the team">
+    The member was removed from the team roster. Their account is no longer managed by your team plan. Depending on your offboarding workflow, their vault data may have been transferred or revoked.
+  </Accordion>
+</AccordionGroup>
+
+## Admin role: isTeamCaptain
+
+The `isTeamCaptain` flag identifies members with administrative privileges. In the Dashlane admin console, these members are referred to as team captains or team admins. They have access to:
+
+- Inviting and removing team members
+- Viewing password health reports
+- Managing team policies and security settings
+- Accessing billing information
+
+If you are building an audit or compliance integration, filter for `isTeamCaptain: true` to identify all accounts with elevated access.
+
+## Timestamps
+
+Both `accountCreationDateUnix` and `lastUpdateDateUnix` are expressed as Unix epoch seconds (not milliseconds). The difference between these two fields can indicate how recently a member's record changed — for example, a recent status change from `pending` to `accepted` would advance `lastUpdateDateUnix` without changing `accountCreationDateUnix`.
+
+<Tip>
+  To identify members who have not been active recently, combine `lastUpdateDateUnix` with device data from [POST /public/teams/MemberDevices](/api-reference/members/devices), which includes a `lastActivityDateUnix` field per device.
+</Tip>
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="List team members" icon="users" href="/api-reference/members/list">
+    The endpoint that returns member objects — see full request and response examples.
+  </Card>
+  <Card title="List member devices" icon="monitor" href="/api-reference/members/devices">
+    Enumerate devices per member, including platform and last activity timestamp.
+  </Card>
+</CardGroup>

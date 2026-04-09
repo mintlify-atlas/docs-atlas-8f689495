@@ -1,0 +1,275 @@
+---
+title: 'Dashlane API automation and integration patterns'
+description: 'Common patterns for integrating Dashlane API data into scheduled reports, SIEM tools, HR offboarding systems, and security trend dashboards.'
+---
+
+The Dashlane Public API is designed for programmatic consumption. Because every endpoint is a simple POST over HTTPS returning JSON, it fits naturally into shell scripts, cron jobs, data pipelines, and monitoring stacks. This guide covers four common integration patterns, with concrete examples for each.
+
+<Note>
+  All API calls require a Bearer token in the `Authorization` header. Store this value in an environment variable and never hardcode it in scripts or source code. See [API key management](/authentication/api-keys) for details.
+</Note>
+
+## Pattern 1: Scheduled health reporting
+
+The most common integration is a cron job that calls `Members` and `PasswordHealthReport`, formats the data, and delivers it to a Slack channel or email distribution list.
+
+<Steps>
+  <Step title="Set up your environment">
+    Export your API key and notification webhook as environment variables:
+
+    ```bash
+    export DASHLANE_API_KEY="DLP_teamUuid_accessKey_secretKey"
+    export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+    ```
+  </Step>
+
+  <Step title="Write the reporting script">
+    The following script fetches team size and password health, then posts a summary to Slack:
+
+    ```bash
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    API_BASE="https://api.dashlane.com/public/teams"
+    AUTH_HEADER="Authorization: Bearer ${DASHLANE_API_KEY}"
+
+    # Fetch data
+    MEMBERS=$(curl --silent --request POST \
+      --url "${API_BASE}/Members" \
+      --header "${AUTH_HEADER}" \
+      --header 'Content-Type: application/json' \
+      --data '{}')
+
+    HEALTH=$(curl --silent --request POST \
+      --url "${API_BASE}/PasswordHealthReport" \
+      --header "${AUTH_HEADER}" \
+      --header 'Content-Type: application/json' \
+      --data '{}')
+
+    # Extract metrics
+    ACTIVE=$(echo "$MEMBERS" | jq '[.members[] | select(.status == "accepted")] | length')
+    PENDING=$(echo "$MEMBERS" | jq '[.members[] | select(.status == "pending")] | length')
+    COMPROMISED=$(echo "$HEALTH" | jq '.report.compromisedPasswords')
+    AVG_STRENGTH=$(echo "$HEALTH" | jq '.report.averagePasswordStrength')
+
+    # Build and send Slack message
+    MESSAGE="*Dashlane weekly report*
+    • Active members: ${ACTIVE}
+    • Pending invitations: ${PENDING}
+    • Compromised passwords: ${COMPROMISED}
+    • Average password strength: ${AVG_STRENGTH}/100"
+
+    curl --silent --request POST \
+      --url "${SLACK_WEBHOOK_URL}" \
+      --header 'Content-Type: application/json' \
+      --data "{\"text\": \"${MESSAGE}\"}"
+    ```
+  </Step>
+
+  <Step title="Schedule with cron">
+    Run the report every Monday morning at 9 AM:
+
+    ```bash
+    0 9 * * 1 /opt/scripts/dashlane-report.sh >> /var/log/dashlane-report.log 2>&1
+    ```
+  </Step>
+</Steps>
+
+## Pattern 2: SIEM and security monitoring integration
+
+Security Information and Event Management (SIEM) platforms ingest structured events for correlation and alerting. You can feed Dashlane password health changes into your SIEM by polling `PasswordHealthReport` and emitting events when thresholds are crossed.
+
+The following pseudocode illustrates the pattern:
+
+```python
+import os
+import json
+import requests
+from datetime import datetime
+
+API_KEY = os.environ["DASHLANE_API_KEY"]
+SIEM_ENDPOINT = os.environ["SIEM_INGEST_URL"]
+
+THRESHOLDS = {
+    "compromisedPasswords": 0,   # alert on any
+    "weakPasswords": 50,         # alert above this count
+}
+
+def fetch_health_report():
+    response = requests.post(
+        "https://api.dashlane.com/public/teams/PasswordHealthReport",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        json={}
+    )
+    response.raise_for_status()
+    return response.json()["report"]
+
+def emit_siem_event(event_type, details):
+    event = {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "source": "dashlane-api",
+        "event_type": event_type,
+        "details": details
+    }
+    requests.post(SIEM_ENDPOINT, json=event)
+
+def evaluate_and_emit(report):
+    for metric, threshold in THRESHOLDS.items():
+        value = report.get(metric, 0)
+        if value > threshold:
+            emit_siem_event(
+                event_type=f"dashlane.{metric}.threshold_exceeded",
+                details={
+                    "metric": metric,
+                    "value": value,
+                    "threshold": threshold
+                }
+            )
+
+report = fetch_health_report()
+evaluate_and_emit(report)
+```
+
+<Tip>
+  Emit events only when values change or thresholds are newly crossed to avoid flooding your SIEM with duplicate alerts. Store the previous report state between runs (e.g., in a file or a key-value store).
+</Tip>
+
+## Pattern 3: HR system sync for offboarding detection
+
+Comparing your Dashlane member list against your HR system's active employee directory is a reliable way to catch offboarding gaps — former employees whose Dashlane accounts were not removed.
+
+<Steps>
+  <Step title="Fetch active Dashlane members">
+    ```bash
+    curl --silent --request POST \
+      --url https://api.dashlane.com/public/teams/Members \
+      --header "Authorization: Bearer ${DASHLANE_API_KEY}" \
+      --header 'Content-Type: application/json' \
+      --data '{}' | jq '[.members[] | select(.status == "accepted") | .login]'
+    ```
+
+    This gives you an array of email addresses for all active seats.
+  </Step>
+
+  <Step title="Compare against your HR directory">
+    Retrieve the active employee list from your HR system using its own API (this varies by vendor), then compute the difference:
+
+    ```python
+    import os
+    import requests
+
+    API_KEY = os.environ["DASHLANE_API_KEY"]
+
+    # Fetch Dashlane active members
+    dashlane_response = requests.post(
+        "https://api.dashlane.com/public/teams/Members",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        json={}
+    )
+    dashlane_members = {
+        m["login"]
+        for m in dashlane_response.json()["members"]
+        if m["status"] == "accepted"
+    }
+
+    # Fetch active employees from HR system (vendor-specific)
+    hr_employees = fetch_hr_active_employees()  # returns set of email strings
+
+    # Find members in Dashlane who are no longer in HR
+    offboarding_gaps = dashlane_members - hr_employees
+
+    for login in offboarding_gaps:
+        print(f"Offboarding gap detected: {login} is active in Dashlane but not in HR")
+    ```
+  </Step>
+
+  <Step title="Route findings to your ticketing system">
+    For each gap found, create a ticket in your ITSM tool (Jira, ServiceNow, etc.) to prompt a manual review. The Dashlane API is read-only, so deprovisioning must happen through the Dashlane admin console or a separate provisioning tool.
+  </Step>
+</Steps>
+
+<Warning>
+  The Dashlane Public API is read-only. Detecting an offboarding gap through this pattern does not automatically remove the member. You must act on the findings through the Dashlane admin console.
+</Warning>
+
+## Pattern 4: Dashboard and trend visualization
+
+`PasswordHealthHistory` returns dated snapshots suitable for time-series charts. The typical workflow is to poll the endpoint once daily, store the snapshots in a database or observability platform, and render trend lines in a dashboard.
+
+```bash
+#!/usr/bin/env bash
+# Store today's snapshot into a newline-delimited JSON log
+
+curl --silent --request POST \
+  --url https://api.dashlane.com/public/teams/PasswordHealthHistory \
+  --header "Authorization: Bearer ${DASHLANE_API_KEY}" \
+  --header 'Content-Type: application/json' \
+  --data '{}' | \
+jq -c '.history[-1]' >> /var/log/dashlane-health-history.ndjson
+```
+
+From there, the NDJSON file can be ingested by tools like Grafana (via a file data source), Elasticsearch, or a time-series database such as InfluxDB.
+
+Useful metrics to plot over time:
+
+- `averagePasswordStrength` — upward trend indicates program effectiveness
+- `compromisedPasswords` — any upward spike warrants investigation
+- `weakPasswords / passwordsCount` — the weak password ratio, normalized for team growth
+
+## Rate limiting and polling recommendations
+
+<Note>
+  Dashlane does not publish a hard rate limit at this time, but the API is intended for integration use, not real-time querying. The guidelines below reflect safe defaults based on the data freshness of each endpoint.
+</Note>
+
+| Endpoint | Data freshness | Recommended interval |
+|---|---|---|
+| `Members` | Near real-time | Hourly or on-demand |
+| `MemberDevices` | Near real-time | Hourly or on-demand |
+| `PasswordHealthReport` | Updated periodically | Every 1–4 hours |
+| `PasswordHealthHistory` | Daily snapshots | Once daily |
+| `TeamInfo` | On change | Daily or on-demand |
+| `TeamPolicies` | On change | Daily or on-demand |
+
+## Security best practices
+
+<AccordionGroup>
+  <Accordion title="Use environment variables for API keys">
+    Never hardcode your API key in a script, configuration file, or source code repository. Use environment variables in shell scripts and secrets managers (AWS Secrets Manager, HashiCorp Vault, GitHub Actions secrets, etc.) in CI/CD pipelines.
+
+    ```bash
+    # Good
+    export DASHLANE_API_KEY="DLP_..."
+    curl --header "Authorization: Bearer ${DASHLANE_API_KEY}" ...
+
+    # Bad — never do this
+    curl --header "Authorization: Bearer DLP_teamUuid_accessKey_secretKey" ...
+    ```
+  </Accordion>
+  <Accordion title="Rotate keys regularly">
+    Treat API keys like passwords. Rotate them on a schedule (e.g., every 90 days) and immediately after any potential exposure. See [managing API keys](/authentication/managing-keys) for rotation steps.
+  </Accordion>
+  <Accordion title="Restrict key scope to what the integration needs">
+    If your automation only reads password health data, do not use a key that also has access to member management operations. Create separate keys for separate integrations.
+  </Accordion>
+  <Accordion title="Log API calls for auditability">
+    Retain logs of when each API call was made, from which system, and what the response status was. This helps with incident investigation and compliance reporting.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+<CardGroup cols={2}>
+  <Card title="Team management" icon="users" href="/guides/team-management">
+    Retrieving member and device data for audit and HR sync workflows.
+  </Card>
+  <Card title="Password health" icon="shield-check" href="/guides/password-health">
+    Understanding health metrics and setting up threshold-based alerts.
+  </Card>
+  <Card title="API key management" icon="key" href="/authentication/managing-keys">
+    Creating, rotating, and scoping API keys for your integrations.
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/overview">
+    Complete reference for all available endpoints.
+  </Card>
+</CardGroup>

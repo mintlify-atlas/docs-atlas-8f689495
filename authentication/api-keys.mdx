@@ -1,0 +1,101 @@
+---
+title: 'Generate API Keys for the Dashlane Public API'
+description: 'Create Dashlane Public API keys using the Admin Console or Dashlane CLI. Keys are shown only once — store them immediately in a secure secrets manager.'
+---
+
+Dashlane API keys are credentials that authorize your integration to call the Dashlane Public API on behalf of your team. You can generate keys through two methods: the Dashlane Admin Console (no tooling required) or the Dashlane CLI (`dcli`, recommended for automated workflows).
+
+<Warning>
+  Your full API key is displayed only once at creation time. If you lose it, you must revoke the key and generate a new one. Store the key immediately in a secrets manager or environment variable.
+</Warning>
+
+## Choose a generation method
+
+<Tabs>
+  <Tab title="Admin Console">
+    The Admin Console provides a graphical interface for generating API keys without installing any tools.
+
+    Follow the instructions in the [Dashlane public API support article](https://support.dashlane.com/hc/en-us/articles/23955544757266-Dashlane-public-API) to create a key from the Admin Console. The article walks you through navigating to the API keys section and copying the generated key.
+
+    <Note>
+      You must be a Dashlane team admin to access the API keys section of the Admin Console.
+    </Note>
+  </Tab>
+  <Tab title="Dashlane CLI">
+    The Dashlane CLI (`dcli`) lets you generate API keys from your terminal. This method is well-suited for onboarding scripts, CI pipelines, and any workflow where you want repeatable, auditable key creation.
+
+    <Steps>
+      <Step title="Install the Dashlane CLI">
+        Follow the [Dashlane CLI installation guide](https://cli.dashlane.com/install) to install `dcli` for your platform.
+
+        ```bash
+        # Verify the installation
+        dcli --version
+        ```
+      </Step>
+      <Step title="Authenticate with your Dashlane account">
+        Sign in to `dcli` using your Dashlane credentials. See the [CLI authentication guide](https://cli.dashlane.com/personal/authentication) for full instructions.
+
+        ```bash
+        dcli login
+        ```
+      </Step>
+      <Step title="Create an API key">
+        Run the `create-key` command with a descriptive label. The description helps you identify the key's purpose when listing or revoking keys later.
+
+        ```bash
+        dcli team public-api create-key "Description of the key"
+        ```
+
+        Example output:
+
+        ```
+        API key created successfully.
+
+        Key:    DLP_a1b2c3d4_e5f6g7h8_i9j0k1l2mno3p4
+        Access: e5f6g7h8
+
+        Store this key securely — it will not be shown again.
+        ```
+      </Step>
+      <Step title="Store the key securely">
+        Copy the full key (starting with `DLP_`) and store it in your secrets manager, CI secrets store, or environment variable. Do not save it in source code or version control.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## The generated key format
+
+After creation, your key will look like this:
+
+```
+DLP_teamUuid_accessKey_secretKey
+```
+
+Use this full string as the value in your `Authorization` header:
+
+```bash
+Authorization: Bearer DLP_teamUuid_accessKey_secretKey
+```
+
+The `accessKey` segment (the third part) is the public identifier for this key. It is what you use when listing or revoking keys — you never need to expose the full key for those operations.
+
+## Using the DLP prefix for security scanning
+
+The `DLP_` prefix is intentional. Because every Dashlane API key starts with `DLP_`, you can configure secret scanning in your CI system or code repository to detect accidentally committed keys. Search for `DLP_` as a custom secret pattern to catch leaks automatically.
+
+<Tip>
+  Use a descriptive label when creating a key, such as `"SIEM integration - prod"` or `"HR dashboard - staging"`. One descriptive label per key makes it much easier to identify and revoke the right key during an incident or offboarding.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication overview" icon="shield" href="/authentication/overview">
+    Understand how to use your API key in requests.
+  </Card>
+  <Card title="Manage your keys" icon="list" href="/authentication/managing-keys">
+    List active keys and revoke keys you no longer need.
+  </Card>
+</CardGroup>

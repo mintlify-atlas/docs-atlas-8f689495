@@ -1,0 +1,91 @@
+---
+title: 'Dashlane Public API reference overview'
+description: 'Complete reference for the Dashlane Public API: base URL, required headers, authentication, and links to all available endpoints.'
+---
+
+The Dashlane Public API is a read-only REST API for Dashlane team accounts. Every endpoint accepts a JSON request body and returns a JSON response. All requests use the `POST` method — there are no `GET`, `PUT`, or `DELETE` operations because the API does not modify any data.
+
+## Base URL
+
+All endpoints share a single base URL:
+
+```
+https://api.dashlane.com
+```
+
+## Required headers
+
+Every request must include two headers:
+
+| Header | Value |
+|---|---|
+| `Content-Type` | `application/json` |
+| `Authorization` | `Bearer <your-api-key>` |
+
+Your API key follows the format `DLP_<teamUuid>_<accessKey>_<secretKey>`. See the [API keys guide](/authentication/api-keys) for instructions on generating and managing keys.
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/Members \
+  --header 'Content-Type: application/json' \
+  --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+  --data '{}'
+```
+
+## Available endpoints
+
+The API exposes six endpoints across three resource groups. All paths are relative to `https://api.dashlane.com`.
+
+| Endpoint | Description |
+|---|---|
+| `POST /public/teams/Members` | List all members of the team with their status and role |
+| `POST /public/teams/MemberDevices` | Retrieve devices registered to team members |
+| `POST /public/teams/PasswordHealthReport` | Get the current password health snapshot for the team |
+| `POST /public/teams/PasswordHealthHistory` | Retrieve historical password health metrics over time |
+| `POST /public/teams/TeamInfo` | Fetch team account information and seat usage |
+| `POST /public/teams/TeamPolicies` | Read the security policies configured for the team |
+
+<CardGroup cols={2}>
+  <Card title="List members" icon="users" href="/api-reference/members/list">
+    Retrieve all team members with their status, role, and license information.
+  </Card>
+  <Card title="Member devices" icon="laptop" href="/api-reference/members/devices">
+    List the devices associated with each team member's account.
+  </Card>
+  <Card title="Password health report" icon="shield-check" href="/api-reference/password-health/report">
+    Get a point-in-time snapshot of password health scores across the team.
+  </Card>
+  <Card title="Password health history" icon="chart-line" href="/api-reference/password-health/history">
+    Query historical password health data to track improvement over time.
+  </Card>
+  <Card title="Team info" icon="building" href="/api-reference/team/info">
+    Retrieve team account details including plan type and seat counts.
+  </Card>
+  <Card title="Team policies" icon="lock" href="/api-reference/team/policies">
+    Read the security policies and enforcement settings for the team.
+  </Card>
+</CardGroup>
+
+## OpenAPI specification
+
+You can download the full OpenAPI 3.0 specification for the Dashlane Public API:
+
+<Card title="Download OpenAPI spec" icon="file-code" href="https://get.dashlane.com/public-api/openapi.json">
+  OpenAPI 3.0 JSON specification for all endpoints, request/response schemas, and authentication.
+</Card>
+
+## Swagger UI
+
+An interactive Swagger UI is available for exploring and testing endpoints directly in your browser without writing any code:
+
+<Card title="Swagger UI" icon="browser" href="https://dashlane.github.io/public-api-documentation/">
+  Browse and test the Dashlane Public API interactively using the hosted Swagger UI.
+</Card>
+
+<Note>
+  The Swagger UI is a read-only exploration tool. You will still need a valid API key to authenticate and execute requests.
+</Note>
+
+## Error handling
+
+All errors are returned as JSON with an HTTP status code. See the [error codes reference](/api-reference/errors) for a full list of status codes, their causes, and how to resolve them.

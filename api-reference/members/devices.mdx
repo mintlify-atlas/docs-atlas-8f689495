@@ -1,0 +1,139 @@
+---
+title: "POST /public/teams/MemberDevices — List devices"
+description: "POST /public/teams/MemberDevices — retrieves devices registered to team members, with platform, activity timestamps, and optional filtering by member login."
+---
+
+Use this endpoint to retrieve all devices associated with members of your Dashlane team. Each device record includes the owning member's login, the device name, the platform it runs on, and timestamps for when it was registered and last active. You can retrieve all devices across the team or filter to a single member by passing their login email in the request body.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/MemberDevices
+```
+
+## Authentication
+
+All requests require a Bearer token in the `Authorization` header. Your API key encodes the team UUID, access key, and secret key in a single string.
+
+<ParamField path="header.Authorization" type="string" required>
+  Bearer token in the format `Bearer DLP_teamUuid_accessKey_secretKey`.
+</ParamField>
+
+<ParamField path="header.Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+## Request body
+
+Send an empty JSON object to retrieve all devices, or include the `login` field to filter results to a single member.
+
+<ParamField path="body.login" type="string">
+  Email address of a specific team member. When provided, the response includes only devices associated with that member. Omit this field to return devices for all team members.
+</ParamField>
+
+## Response fields
+
+<ResponseField name="devices" type="object[]" required>
+  Array of device objects. If a login filter was applied, only devices belonging to that member are included.
+
+  <Expandable title="properties">
+    <ResponseField name="login" type="string" required>
+      Email address of the team member who owns this device.
+    </ResponseField>
+
+    <ResponseField name="deviceName" type="string" required>
+      Human-readable name assigned to the device, typically set by the operating system or the user during Dashlane setup.
+    </ResponseField>
+
+    <ResponseField name="platform" type="string" required>
+      Operating system or client type for the device. Possible values: `macos`, `windows`, `linux`, `ios`, `android`, `web`.
+    </ResponseField>
+
+    <ResponseField name="creationDateUnix" type="number" required>
+      Unix timestamp (seconds) for when this device was first registered with Dashlane.
+    </ResponseField>
+
+    <ResponseField name="lastActivityDateUnix" type="number" required>
+      Unix timestamp (seconds) for the most recent activity recorded on this device. Use this field to identify devices that have not been used recently.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  All timestamps are Unix epoch seconds. Multiply by 1000 to convert to milliseconds for JavaScript `Date` objects.
+</Note>
+
+<Tip>
+  `lastActivityDateUnix` is useful for detecting inactive or abandoned devices. Devices with no activity for an extended period may indicate accounts that have not been used or former members whose devices were not properly offboarded.
+</Tip>
+
+## Example: retrieve all devices
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/MemberDevices \
+  --header 'Authorization: Bearer DLP_abc123_myAccessKey_mySecretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+## Example: filter by member login
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/MemberDevices \
+  --header 'Authorization: Bearer DLP_abc123_myAccessKey_mySecretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{ "login": "alice@example.com" }'
+```
+
+## Example response
+
+```json
+{
+  "devices": [
+    {
+      "login": "alice@example.com",
+      "deviceName": "Alice's MacBook Pro",
+      "platform": "macos",
+      "creationDateUnix": 1690000000,
+      "lastActivityDateUnix": 1701000000
+    },
+    {
+      "login": "alice@example.com",
+      "deviceName": "Alice's iPhone",
+      "platform": "ios",
+      "creationDateUnix": 1691000000,
+      "lastActivityDateUnix": 1700500000
+    }
+  ]
+}
+```
+
+## Platform values
+
+| Value     | Description                                      |
+|-----------|--------------------------------------------------|
+| `macos`   | Dashlane desktop app on macOS                    |
+| `windows` | Dashlane desktop app on Windows                  |
+| `linux`   | Dashlane desktop app on Linux                    |
+| `ios`     | Dashlane mobile app on iOS / iPadOS              |
+| `android` | Dashlane mobile app on Android                   |
+| `web`     | Dashlane web app accessed through a browser      |
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="List team members" icon="users" href="/api-reference/members/list">
+    Retrieve all team members with statuses, roles, and account metadata.
+  </Card>
+  <Card title="Member fields reference" icon="book-open" href="/api-reference/members/details">
+    Understand member status values, the isTeamCaptain flag, and timestamp fields.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    How to obtain and format your API key for Bearer token auth.
+  </Card>
+  <Card title="Error reference" icon="triangle-alert" href="/api-reference/errors">
+    HTTP status codes and error response shapes returned by the API.
+  </Card>
+</CardGroup>

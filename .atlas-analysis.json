@@ -1,21 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Dashlane Public API",
+  "projectType": "api-service",
+  "projectName": "Dashlane Public API",
+  "projectDescription": "A read-only REST API providing programmatic access to Dashlane team account data, member management, device oversight, and password health analytics.",
   "theme": "luma",
-  "colors": {
-    "primary": "#0C3BCC"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/Dashlane/public-api-documentation"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/Dashlane/public-api-documentation"
-    }
-  },
+  "primaryColor": "#0C3BCC",
+  "lightColor": null,
+  "darkColor": null,
   "navigation": {
     "tabs": [
       {
@@ -81,5 +71,26 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Read-only access to Dashlane team account data",
+    "Team member listing with roles, statuses, and usage metrics",
+    "Device management and oversight per member",
+    "Password health reporting including weak, reused, and compromised credentials",
+    "Historical password health trend monitoring",
+    "API key generation and revocation via Admin Console or Dashlane CLI",
+    "Bearer token authentication with the DLP prefix convention",
+    "OpenAPI 3.0 specification available for download"
+  ],
+  "publicApiSurface": [
+    "POST /public/teams/Members",
+    "POST /public/teams/MemberDevices",
+    "POST /public/teams/PasswordHealthReport",
+    "POST /public/teams/PasswordHealthHistory",
+    "POST /public/teams/TeamInfo",
+    "POST /public/teams/TeamPolicies",
+    "API key management: dcli team public-api create-key",
+    "API key management: dcli team public-api list-keys",
+    "API key management: dcli team public-api revoke-key"
+  ]
 }

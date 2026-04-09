@@ -1,0 +1,189 @@
+---
+title: 'Manage team members with the Dashlane Public API'
+description: 'Learn how to retrieve team member data, check device enrollment, and audit inactive users using the Dashlane Public API Members and MemberDevices endpoints.'
+---
+
+The Dashlane Public API gives you programmatic access to your team's membership data, including account status, admin roles, desktop app enrollment, and per-member device information. This guide walks through the key endpoints and shows how to use them to build member auditing workflows.
+
+## Retrieving all team members
+
+The `Members` endpoint returns a snapshot of every seat in your Dashlane team plan. Each record includes the member's login (email address), their current status, whether they have the desktop app installed, and whether they hold the Team Captain (admin) role.
+
+<Steps>
+  <Step title="Call the Members endpoint">
+    Send a POST request with an empty JSON body. The `Authorization` header must carry your API key.
+
+    ```bash
+    curl --request POST \
+      --url https://api.dashlane.com/public/teams/Members \
+      --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+      --header 'Content-Type: application/json' \
+      --data '{}'
+    ```
+  </Step>
+
+  <Step title="Inspect the response">
+    The endpoint returns an array of member objects. A realistic response looks like this:
+
+    ```json
+    {
+      "members": [
+        {
+          "login": "alice@example.com",
+          "status": "accepted",
+          "isTeamCaptain": true,
+          "hasDesktopApp": true,
+          "isBiometricsEnabled": false,
+          "accountCreationDateUnix": 1690000000,
+          "lastUpdateDateUnix": 1710000000,
+          "devices": 2
+        },
+        {
+          "login": "bob@example.com",
+          "status": "accepted",
+          "isTeamCaptain": false,
+          "hasDesktopApp": false,
+          "isBiometricsEnabled": false,
+          "accountCreationDateUnix": 1700000000,
+          "lastUpdateDateUnix": 1700000000,
+          "devices": 1
+        },
+        {
+          "login": "carol@example.com",
+          "status": "pending",
+          "isTeamCaptain": false,
+          "hasDesktopApp": false,
+          "isBiometricsEnabled": false,
+          "accountCreationDateUnix": 1712000000,
+          "lastUpdateDateUnix": 1712000000,
+          "devices": 0
+        }
+      ]
+    }
+    ```
+  </Step>
+</Steps>
+
+## Understanding member fields
+
+<AccordionGroup>
+  <Accordion title="status">
+    The `status` field reflects where a member is in the lifecycle:
+
+    - `accepted` — the invitation was accepted and the account is in good standing
+    - `pending` — an invitation was sent but not yet accepted
+    - `removed` — the member was removed from the team; their record is retained for audit purposes
+  </Accordion>
+
+  <Accordion title="isTeamCaptain">
+    `isTeamCaptain: true` identifies members with admin privileges in the Dashlane Business console. Use this field to verify admin assignments or detect unexpected privilege escalation.
+  </Accordion>
+
+  <Accordion title="hasDesktopApp">
+    `hasDesktopApp` is `true` when the member has authenticated at least once through the Dashlane desktop application. Members with `hasDesktopApp: false` may not have completed onboarding, which can affect their password health data coverage.
+  </Accordion>
+
+  <Accordion title="accountCreationDateUnix and lastUpdateDateUnix">
+    Both fields are Unix timestamps (seconds since epoch). `lastUpdateDateUnix` reflects the most recent change to the member record, such as a device addition or status change. Use these fields to detect members who have not had any account activity since joining.
+  </Accordion>
+</AccordionGroup>
+
+## Retrieving devices per member
+
+The `MemberDevices` endpoint returns device-level details. You can fetch devices for all members or scope the request to a single login.
+
+<Tabs>
+  <Tab title="All members">
+    ```bash
+    curl --request POST \
+      --url https://api.dashlane.com/public/teams/MemberDevices \
+      --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+      --header 'Content-Type: application/json' \
+      --data '{}'
+    ```
+  </Tab>
+  <Tab title="Single member">
+    ```bash
+    curl --request POST \
+      --url https://api.dashlane.com/public/teams/MemberDevices \
+      --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+      --header 'Content-Type: application/json' \
+      --data '{ "login": "alice@example.com" }'
+    ```
+  </Tab>
+</Tabs>
+
+A realistic response for a single member:
+
+```json
+{
+  "devices": [
+    {
+      "login": "alice@example.com",
+      "platform": "macOS",
+      "creationDateUnix": 1690000000,
+      "lastActivityDateUnix": 1711500000
+    },
+    {
+      "login": "alice@example.com",
+      "platform": "iOS",
+      "creationDateUnix": 1695000000,
+      "lastActivityDateUnix": 1711800000
+    }
+  ]
+}
+```
+
+<Note>
+  The `devices` count on the `Members` response and the records returned by `MemberDevices` should match. If a member shows `devices: 0`, the `MemberDevices` endpoint will return no records for that login.
+</Note>
+
+## Use case: auditing inactive members
+
+A common integration pattern is to identify members who joined but never fully activated — for example, those still in `pending` status or those who have `hasDesktopApp: false` after a set onboarding window.
+
+The following script fetches all members and prints those who are either still pending or have no desktop app after 30 days:
+
+```bash
+#!/usr/bin/env bash
+
+API_KEY="${DASHLANE_API_KEY}"
+THRESHOLD_DAYS=30
+NOW=$(date +%s)
+CUTOFF=$(( NOW - THRESHOLD_DAYS * 86400 ))
+
+curl --silent --request POST \
+  --url https://api.dashlane.com/public/teams/Members \
+  --header "Authorization: Bearer ${API_KEY}" \
+  --header 'Content-Type: application/json' \
+  --data '{}' | \
+jq --argjson cutoff "$CUTOFF" '
+  .members[]
+  | select(
+      .status == "pending"
+      or (.hasDesktopApp == false and .accountCreationDateUnix < $cutoff)
+    )
+  | { login, status, hasDesktopApp, accountCreationDateUnix }
+'
+```
+
+<Warning>
+  Store your API key in an environment variable (`DASHLANE_API_KEY`), never hard-coded in a script. See the [authentication guide](/authentication/api-keys) for best practices.
+</Warning>
+
+## API reference
+
+<CardGroup cols={2}>
+  <Card title="List members" icon="users" href="/api-reference/members/list">
+    Full parameter and response reference for the Members endpoint.
+  </Card>
+  <Card title="Member devices" icon="laptop" href="/api-reference/members/devices">
+    Full parameter and response reference for the MemberDevices endpoint.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    How to create and manage API keys for your team.
+  </Card>
+  <Card title="Automation patterns" icon="rotate" href="/guides/automation">
+    Common integration patterns for scheduled reporting and HR sync.
+  </Card>
+</CardGroup>

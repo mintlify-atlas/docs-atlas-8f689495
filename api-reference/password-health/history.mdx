@@ -1,0 +1,133 @@
+---
+title: 'POST /public/teams/PasswordHealthHistory'
+description: 'Returns historical password health snapshots ordered by date, enabling you to track security improvements and measure the impact of remediation initiatives over time.'
+---
+
+The `PasswordHealthHistory` endpoint returns a time-series of password health snapshots for your team. Each snapshot captures the same aggregate metrics as the current report — total passwords, safe, weak, reused, compromised, and average strength — recorded at a point in the past. Use this data to build trend charts, measure whether security initiatives had a meaningful effect, or satisfy audit requirements.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/PasswordHealthHistory
+```
+
+## Authentication
+
+All requests require a `Bearer` token in the `Authorization` header. Your API key follows the format `DLP_<teamUuid>_<accessKey>_<secretKey>`. See [API keys](/authentication/api-keys) for instructions on generating keys.
+
+## Request
+
+Send an empty JSON object as the request body. No parameters are required.
+
+<ParamField body="body" type="object">
+  Empty JSON object. No fields are accepted.
+</ParamField>
+
+## Response
+
+<ResponseField name="history" type="array" required>
+  Array of password health snapshots ordered by date. Each element represents the team's aggregate password health on a specific date.
+
+  <Expandable title="properties">
+    <ResponseField name="date" type="string" required>
+      The date of the snapshot in `YYYY-MM-DD` format.
+    </ResponseField>
+
+    <ResponseField name="passwordsCount" type="number" required>
+      Total number of passwords stored across all team members on this date.
+    </ResponseField>
+
+    <ResponseField name="safePasswords" type="number" required>
+      Number of passwords that were considered safe on this date.
+    </ResponseField>
+
+    <ResponseField name="weakPasswords" type="number" required>
+      Number of passwords that did not meet minimum strength requirements on this date.
+    </ResponseField>
+
+    <ResponseField name="reusedPasswords" type="number" required>
+      Number of passwords that were reused across a member's vault on this date.
+    </ResponseField>
+
+    <ResponseField name="compromisedPasswords" type="number" required>
+      Number of passwords that had appeared in known data breaches on this date.
+    </ResponseField>
+
+    <ResponseField name="averagePasswordStrength" type="number" required>
+      Team-wide average password strength score on this date, from `0` to `100`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  Use the history data to build trend charts or track whether a security initiative — such as a company-wide password reset campaign — produced a measurable improvement in your team's scores.
+</Note>
+
+<Tip>
+  Combine this endpoint with `PasswordHealthReport` in a single dashboard: display the latest snapshot from the report as the "current state" card, then plot the history array to show the trend line below it.
+</Tip>
+
+## Example
+
+### Request
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/PasswordHealthHistory \
+  --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+### Response
+
+```json
+{
+  "history": [
+    {
+      "date": "2024-01-01",
+      "passwordsCount": 1180,
+      "safePasswords": 890,
+      "weakPasswords": 180,
+      "reusedPasswords": 95,
+      "compromisedPasswords": 55,
+      "averagePasswordStrength": 70
+    },
+    {
+      "date": "2024-02-01",
+      "passwordsCount": 1210,
+      "safePasswords": 930,
+      "weakPasswords": 162,
+      "reusedPasswords": 91,
+      "compromisedPasswords": 47,
+      "averagePasswordStrength": 73
+    },
+    {
+      "date": "2024-03-01",
+      "passwordsCount": 1250,
+      "safePasswords": 980,
+      "weakPasswords": 145,
+      "reusedPasswords": 87,
+      "compromisedPasswords": 38,
+      "averagePasswordStrength": 76
+    }
+  ]
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Password health report" icon="shield-check" href="/api-reference/password-health/report">
+    Get the current password health snapshot with per-member breakdowns.
+  </Card>
+  <Card title="Password health guide" icon="book-open" href="/guides/password-health">
+    Learn how to combine the report and history endpoints to build a complete monitoring dashboard.
+  </Card>
+  <Card title="Automation guide" icon="bolt" href="/guides/automation">
+    See patterns for scheduling API calls and triggering alerts based on health thresholds.
+  </Card>
+  <Card title="API reference overview" icon="list" href="/api-reference/overview">
+    Browse all available endpoints and their request and response formats.
+  </Card>
+</CardGroup>

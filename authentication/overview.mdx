@@ -1,0 +1,74 @@
+---
+title: 'Authenticate with the Dashlane Public API'
+description: 'Learn how Bearer token authentication works in the Dashlane Public API, including the key format, the DLP prefix convention, and how to send authenticated requests.'
+---
+
+Every request to the Dashlane Public API must include a valid API key as a Bearer token in the `Authorization` header. There is no session management, OAuth flow, or cookie-based auth — each request is independently authenticated using the key you generate from the Admin Console or Dashlane CLI.
+
+## How authentication works
+
+The API uses standard HTTP Bearer token authentication. You include your API key in the `Authorization` header of every request:
+
+```bash
+Authorization: Bearer <your-api-key>
+```
+
+If the header is missing or the key is invalid, the API returns a `401 Unauthorized` response.
+
+## API key format
+
+Dashlane API keys follow a structured format that encodes the team and access credentials:
+
+```
+DLP_teamUuid_accessKey_secretKey
+```
+
+| Segment | Description |
+|---|---|
+| `DLP` | Fixed prefix, identifies Dashlane API keys |
+| `teamUuid` | The UUID of your Dashlane team |
+| `accessKey` | Public identifier for the key (used to list or revoke keys) |
+| `secretKey` | Secret credential — treat this like a password |
+
+The full key is used as-is in the `Authorization` header. For example:
+
+```
+Authorization: Bearer DLP_a1b2c3d4_e5f6g7h8_i9j0k1l2
+```
+
+## Why the DLP prefix matters
+
+The `DLP_` prefix lets you detect accidentally committed API keys with static analysis tools or secret scanning in your CI pipeline. By searching your codebase for `DLP_`, you can catch leaked keys before they cause a security incident.
+
+<Tip>
+  Enable secret scanning in your repository (GitHub, GitLab, or similar) and add `DLP_` as a custom pattern to automatically detect and alert on any committed Dashlane API keys.
+</Tip>
+
+## Example authenticated request
+
+The following example calls the members list endpoint with a valid API key:
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/Members \
+  --header 'Authorization: Bearer DLP_teamUuid_accessKey_secretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+Replace `DLP_teamUuid_accessKey_secretKey` with your actual API key.
+
+<Note>
+  All Dashlane Public API endpoints use the `POST` method with a JSON body, even for read-only operations. Make sure to include the `Content-Type: application/json` header.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Generate an API key" icon="key" href="/authentication/api-keys">
+    Create a key using the Admin Console or Dashlane CLI.
+  </Card>
+  <Card title="Manage your keys" icon="list" href="/authentication/managing-keys">
+    List active keys, revoke keys, and follow key management best practices.
+  </Card>
+</CardGroup>

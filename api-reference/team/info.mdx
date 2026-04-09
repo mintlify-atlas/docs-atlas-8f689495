@@ -1,0 +1,127 @@
+---
+title: "POST /public/teams/TeamInfo — Team account details"
+description: "Retrieve your Dashlane team's name, plan tier, member counts, admin email addresses, and account creation and renewal timestamps in a single call."
+---
+
+Use this endpoint to fetch general metadata about your Dashlane team account. The response includes the team's display name, subscription plan, total and active member counts, the email addresses of all administrators, and Unix timestamps for account creation and upcoming renewal. This is useful for dashboards, audit scripts, and license-tracking automation.
+
+## Endpoint
+
+```
+POST https://api.dashlane.com/public/teams/TeamInfo
+```
+
+## Authentication
+
+All requests require a Bearer token in the `Authorization` header. Your API key encodes the team UUID, access key, and secret key in a single string.
+
+<ParamField path="header.Authorization" type="string" required>
+  Bearer token in the format `Bearer DLP_teamUuid_accessKey_secretKey`.
+</ParamField>
+
+<ParamField path="header.Content-Type" type="string" required>
+  Must be `application/json`.
+</ParamField>
+
+## Request body
+
+Send an empty JSON object. No parameters are required or accepted.
+
+```json
+{}
+```
+
+## Response fields
+
+<ResponseField name="info" type="object" required>
+  Object containing team account metadata.
+
+  <Expandable title="properties">
+    <ResponseField name="teamName" type="string" required>
+      The display name of your Dashlane team as configured in the Admin Console.
+    </ResponseField>
+
+    <ResponseField name="teamUuid" type="string" required>
+      The unique identifier for your team, in UUID v4 format. This value appears in your API key string.
+    </ResponseField>
+
+    <ResponseField name="plan" type="string" required>
+      The active subscription tier for the team. Common values are `business` and `enterprise`. Use this field to verify the plan level when building plan-gated features.
+    </ResponseField>
+
+    <ResponseField name="membersCount" type="number" required>
+      Total number of seats provisioned on the team, including pending and removed members.
+    </ResponseField>
+
+    <ResponseField name="activeMembers" type="number" required>
+      Number of members with `accepted` status — those actively using the account.
+    </ResponseField>
+
+    <ResponseField name="adminEmails" type="string[]" required>
+      Array of email addresses belonging to team administrators (team captains). Returns an empty array if no admins are found.
+    </ResponseField>
+
+    <ResponseField name="creationDateUnix" type="number" required>
+      Unix timestamp (seconds) for when the team account was created.
+    </ResponseField>
+
+    <ResponseField name="renewalDateUnix" type="number" required>
+      Unix timestamp (seconds) for the next subscription renewal date.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  All timestamps are Unix epoch seconds. Multiply by 1000 to convert to milliseconds for JavaScript `Date` objects.
+</Note>
+
+<Note>
+  The `plan` field reflects the commercial subscription tier (e.g., `business`, `enterprise`) and is not a feature-flag list. Contact Dashlane support if the value does not match your expected plan.
+</Note>
+
+## Example request
+
+```bash
+curl --request POST \
+  --url https://api.dashlane.com/public/teams/TeamInfo \
+  --header 'Authorization: Bearer DLP_a1b2c3d4_myAccessKey_mySecretKey' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+## Example response
+
+```json
+{
+  "info": {
+    "teamName": "Acme Corporation",
+    "teamUuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "plan": "business",
+    "membersCount": 42,
+    "activeMembers": 38,
+    "adminEmails": [
+      "alice@example.com",
+      "carol@example.com"
+    ],
+    "creationDateUnix": 1640000000,
+    "renewalDateUnix": 1735000000
+  }
+}
+```
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Security policies" icon="shield" href="/api-reference/team/policies">
+    Read the 2FA, SSO, password strength, and sharing policies configured for your team.
+  </Card>
+  <Card title="List team members" icon="users" href="/api-reference/members/list">
+    Enumerate all members on the team with their roles and statuses.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication/overview">
+    How to obtain and format your API key for Bearer token auth.
+  </Card>
+  <Card title="Error reference" icon="triangle-alert" href="/api-reference/errors">
+    HTTP status codes and error response shapes returned by the API.
+  </Card>
+</CardGroup>
